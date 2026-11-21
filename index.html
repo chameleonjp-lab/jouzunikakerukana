@@ -48,7 +48,32 @@ const LANGUAGE_KEY="jouzuni_kakerukana:language:v1";
 const languageSelect=document.getElementById("languageSelect");
 let locale="ja";
 function t(key,values={}){return JOUZU_LOCALES[locale][key].replace(/\{(\w+)\}/g,(_,k)=>String(values[k]??""));}
-function readLanguage(){try{const found=localStorage.getItem(LANGUAGE_KEY);if(Object.hasOwn(JOUZU_LOCALES,found))return found;}catch{}return "ja";}
+function readLanguage() {
+  function supportedLocale(value) {
+    if (typeof value !== "string") return undefined;
+    const parts = value.trim().toLowerCase().replaceAll("_", "-").split("-");
+    const [language, ...subtags] = parts;
+    if (language === "zh") {
+      const script = subtags.find(tag => tag === "hans" || tag === "hant");
+      if (script) return script === "hant" ? "zh-Hant" : "zh-Hans";
+      return subtags.some(tag => ["tw", "hk", "mo"].includes(tag)) ? "zh-Hant" : "zh-Hans";
+    }
+    if (language === "pt") return "pt-BR";
+    return Object.hasOwn(JOUZU_LOCALES, language) ? language : undefined;
+  }
+  try {
+    const saved = supportedLocale(localStorage.getItem(LANGUAGE_KEY));
+    if (saved) return saved;
+  } catch {}
+  const browser = typeof navigator === "undefined" ? {} : navigator;
+  const preferences = [...(browser.languages || []), browser.language]
+    .filter(value => typeof value === "string" && value.trim());
+  for (const preference of preferences) {
+    const supported = supportedLocale(preference);
+    if (supported) return supported;
+  }
+  return preferences.length ? "en" : "ja";
+}
 function applyLanguage(next){
  if(!Object.hasOwn(JOUZU_LOCALES,next))return;
  locale=next;document.documentElement.lang=next;document.title=t("title");languageSelect.value=next;
